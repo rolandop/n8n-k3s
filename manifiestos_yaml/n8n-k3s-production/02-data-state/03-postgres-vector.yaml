@@ -6,9 +6,15 @@ metadata:
   namespace: data-state
 spec:
   instances: 2
-  # La imagen oficial de CNPG ya incluye pgvector por defecto
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  # Actualización automática del nodo primario sin intervención humana
   primaryUpdateStrategy: unsupervised
+  nodeMaintenanceWindow:
+    inProgress: false
+    reusePVC: true
+  affinity:
+    nodeSelector:
+      workload: vector
   storage:
     size: 200Gi
     storageClass: local-path
@@ -18,6 +24,8 @@ spec:
       owner: vector_user
       secret:
         name: vector-db-secret
+      postInitSQL:
+        - "CREATE EXTENSION IF NOT EXISTS vector;"
 ---
 apiVersion: v1
 kind: Secret

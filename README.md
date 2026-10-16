@@ -3,9 +3,17 @@ sudo dnf update -y
 sudo dnf install -y curl wget tar iptables container-selinux epel-release util-linux net-tools
 
 sudo dnf install -y kernel-modules-extra-$(uname -r)
-
+sudo dnf install -y iptables
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -F FORWARD
+sudo dnf install -y ethtool
+sudo ethtool -K flannel.1 tx off
+sudo dnf install -y tcpdump
 
 --Instalacion del Cluster, Todos los nodos
+
+
 sudo swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
@@ -22,6 +30,16 @@ net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
 EOF
+
+cat <<EOF | sudo tee /etc/NetworkManager/conf.d/k3s.conf
+[keyfile]
+unmanaged-devices=interface-name:flannel*;interface-name:cni0
+EOF
+
+sudo systemctl reload NetworkManager
+
+
+
 
 # NOMBRAR AL NODO MASTER
 sudo hostnamectl set-hostname srv-k3s-master
@@ -40,8 +58,11 @@ kubectl get nodes
 
 
 # Abrir el puerto permanentemente
-sudo firewall-cmd --permanent --add-port=6443/tcp
+sudo firewall-cmd --permanent --zone=trusted --add-source=10.42.0.0/16
+sudo firewall-cmd --permanent --zone=trusted --add-source=10.43.0.0/16
 sudo firewall-cmd --permanent --add-port=8472/udp
+sudo firewall-cmd --permanent --add-port=9443/tcp
+sudo firewall-cmd --reload
 sudo firewall-cmd --reload
 
 
@@ -81,6 +102,24 @@ curl -sfL https://get.k3s.io | K3S_URL=https://192.168.217.135:6443 \
   K3S_TOKEN="K104b05033dabd3fb05fda0b5244041f695dde9d6a941fe2acae9582a3d96896b1e::server:31f81b9a34a8bee0b87628df5b112d6d" sh -
 
 
+# TODOS LOS NODOS
+
+sudo firewall-cmd --permanent --zone=trusted --add-source=10.42.0.0/16
+sudo firewall-cmd --permanent --zone=trusted --add-source=10.43.0.0/16
+sudo firewall-cmd --permanent --add-port=8472/udp
+sudo firewall-cmd --permanent --add-port=9443/tcp
+sudo firewall-cmd --reload
+
+sudo ethtool -K enp2s0 rx off tx off
+sudo sysctl -w net.ipv4.conf.all.rp_filter=0
+sudo sysctl -w net.ipv4.conf.default.rp_filter=0
+sudo sysctl -w net.ipv4.conf.enp2s0.rp_filter=0
+echo 0 | sudo tee /proc/sys/net/ipv4/conf/flannel.1/rp_filter
+
+sudo nft flush ruleset
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -F FORWARD
+
 --Etiquetado de Nodos
 kubectl get nodes
 
@@ -95,6 +134,9 @@ kubectl label node srv-k3s-data-01 workload=data storage=fast
 
 # Etiquetar nodo dedicado al motor vectorial pgvector (NVMe)
 kubectl label node srv-k3s-vector-01 workload=vector storage=nvme
+
+# Desplegar la suite completa de n8n
+kubectl apply -f n8n-k3s-production/03-n8n-system/
 
 
 --Verificación final del Clúster
@@ -115,10 +157,15 @@ Comprobar
 kubectl get deployment -n cnpg-system cnpg-controller-manager
 
 Paso 2: Crear los Namespaces
-
 kubectl apply -f n8n-k3s-production/00-namespaces.yaml
+
+Paso 3: Aplicar las Network Policies de seguridad
 kubectl apply -f n8n-k3s-production/01-security/
+
+Paso 4: Desplegar la capa de persistencia (data-state)
 kubectl apply -f n8n-k3s-production/02-data-state/
+
+
 kubectl apply -f n8n-k3s-production/04-gateway-dmz/
 kubectl apply -f n8n-k3s-production/03-n8n-system/
 

@@ -5,15 +5,21 @@ metadata:
   namespace: n8n-system
 data:
   DB_TYPE: postgresdb
-  DB_POSTGRESDB_HOST: n8n-db-rw.data-state.svc.cluster.local
+  DB_POSTGRESDB_HOST: "n8n-db-rw.data-state.svc.cluster.local."
   DB_POSTGRESDB_PORT: "5432"
   DB_POSTGRESDB_DATABASE: n8n
   DB_POSTGRESDB_USER: n8n_user
-  QUEUE_BULL_REDIS_HOST: redis.data-state.svc.cluster.local
+  QUEUE_BULL_REDIS_HOST: "redis.data-state.svc.cluster.local."
   QUEUE_BULL_REDIS_PORT: "6379"
   EXECUTIONS_MODE: queue
   N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
   WEBHOOK_URL: "https://ecria.aseguradoradelsur.xyz/"
+  # Desactivar llamadas externas que bloquean el DNS al iniciar:
+  N8N_DIAGNOSTICS_ENABLED: "false"
+  N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+  N8N_TEMPLATES_ENABLED: "false"
+  # Ampliar hilos de resolución DNS de Node.js:
+  UV_THREADPOOL_SIZE: "64"
 ---
 apiVersion: v1
 kind: Secret

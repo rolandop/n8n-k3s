@@ -7,7 +7,14 @@ metadata:
 spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  # Actualización automática del nodo primario sin intervención humana
   primaryUpdateStrategy: unsupervised
+  nodeMaintenanceWindow:
+    inProgress: false
+    reusePVC: true
+  affinity:
+    nodeSelector:
+      workload: data
   storage:
     size: 150Gi
     storageClass: local-path
