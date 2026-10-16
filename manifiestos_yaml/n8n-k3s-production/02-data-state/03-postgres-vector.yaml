@@ -5,7 +5,7 @@ metadata:
   name: vector-db
   namespace: data-state
 spec:
-  instances: 2
+  instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4
   # Actualización automática del nodo primario sin intervención humana
   primaryUpdateStrategy: unsupervised

@@ -38,6 +38,17 @@ EOF
 
 sudo systemctl reload NetworkManager
 
+sudo systemctl disable --now firewalld
+# Desactivar aceleración de checksum en la tarjeta física
+sudo ethtool -K enp2s0 rx off tx off
+
+# Desactivar rp_filter en todas las interfaces
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 | sudo tee "$f" > /dev/null; done
+
+# Permitir reenvío en iptables
+sudo iptables -P FORWARD ACCEPT
+
+
 
 
 
@@ -135,9 +146,6 @@ kubectl label node srv-k3s-data-01 workload=data storage=fast
 # Etiquetar nodo dedicado al motor vectorial pgvector (NVMe)
 kubectl label node srv-k3s-vector-01 workload=vector storage=nvme
 
-# Desplegar la suite completa de n8n
-kubectl apply -f n8n-k3s-production/03-n8n-system/
-
 
 --Verificación final del Clúster
 kubectl get nodes -o wide --show-labels
@@ -154,19 +162,21 @@ kubectl apply --server-side -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.24/releases/cnpg-1.24.0.yaml
 
 Comprobar
-kubectl get deployment -n cnpg-system cnpg-controller-manager
+# kubectl get deployment -n cnpg-system cnpg-controller-manager
 
-Paso 2: Crear los Namespaces
+# Paso 2: Crear los Namespaces
 kubectl apply -f n8n-k3s-production/00-namespaces.yaml
 
-Paso 3: Aplicar las Network Policies de seguridad
+# Paso 3: Aplicar las Network Policies de seguridad
 kubectl apply -f n8n-k3s-production/01-security/
 
-Paso 4: Desplegar la capa de persistencia (data-state)
+# Paso 4: Desplegar la capa de persistencia (data-state)
 kubectl apply -f n8n-k3s-production/02-data-state/
 
 
 kubectl apply -f n8n-k3s-production/04-gateway-dmz/
+
+# Paso 6: Desplegar la capa de persistencia (data-state)
 kubectl apply -f n8n-k3s-production/03-n8n-system/
 
 
