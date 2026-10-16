@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-main
+  namespace: n8n-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n-main
+  template:
+    metadata:
+      labels:
+        app: n8n-main
+    spec:
+      containers:
+      - name: n8n
+        image: docker.n8n.io/n8nio/n8n:latest
+        envFrom:
+        - configMapRef:
+            name: n8n-config
+        - secretRef:
+            name: n8n-secret
+        env:
+        - name: N8N_DISABLE_PRODUCTION_MAIN_PROCESS
+          value: "true" # Solo habilita UI y Cron
+        ports:
+        - containerPort: 5678
+        volumeMounts:
+        - name: n8n-data
+          mountPath: /home/node/.n8n
+      volumes:
+      - name: n8n-data
+        emptyDir: {} # Configuración general, flujos reales viven en Postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-main
+  namespace: n8n-system
+spec:
+  selector:
+    app: n8n-main
+  ports:
+  - port: 5678
+    targetPort: 5678

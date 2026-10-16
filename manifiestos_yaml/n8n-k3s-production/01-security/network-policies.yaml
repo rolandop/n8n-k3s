@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-intranet-egress
+  namespace: n8n-system
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  # 1. Permitir DNS
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+  # 2. Permitir trafico al gateway-dmz
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: gateway-dmz
+  # 3. Permitir trafico al data-state
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: data-state
+  # 4. Permitir salida a internet (OpenAI, APIs externas) EXCEPTO redes privadas corporativas
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8       # Rango Intranet ADS
+        - 192.168.0.0/16   # Rango Intranet ADS
+        - 172.16.0.0/12    # Redes privadas genéricas

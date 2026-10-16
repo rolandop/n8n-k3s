@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-webhook
+  namespace: n8n-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: n8n-webhook
+  template:
+    metadata:
+      labels:
+        app: n8n-webhook
+    spec:
+      containers:
+      - name: n8n
+        image: docker.n8n.io/n8nio/n8n:latest
+        command: ["n8n", "webhook"]
+        envFrom:
+        - configMapRef:
+            name: n8n-config
+        - secretRef:
+            name: n8n-secret
+        ports:
+        - containerPort: 5678
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-webhook
+  namespace: n8n-system
+spec:
+  selector:
+    app: n8n-webhook
+  ports:
+  - port: 5678
+    targetPort: 5678
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: n8n-webhook-hpa
+  namespace: n8n-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: n8n-webhook
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

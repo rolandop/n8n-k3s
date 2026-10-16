@@ -1,0 +1,30 @@
+# Requiere CloudNativePG Operator instalado previamente
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: vector-db
+  namespace: data-state
+spec:
+  instances: 2
+  # La imagen oficial de CNPG ya incluye pgvector por defecto
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 200Gi
+    storageClass: local-path
+  bootstrap:
+    initdb:
+      database: vectordb
+      owner: vector_user
+      secret:
+        name: vector-db-secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vector-db-secret
+  namespace: data-state
+type: kubernetes.io/basic-auth
+stringData:
+  username: vector_user
+  password: "ChangeThisVectorPassword123!"

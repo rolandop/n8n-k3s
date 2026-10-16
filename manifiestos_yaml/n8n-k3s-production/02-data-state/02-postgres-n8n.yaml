@@ -1,0 +1,29 @@
+# Requiere CloudNativePG Operator instalado previamente
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: n8n-db
+  namespace: data-state
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 150Gi
+    storageClass: local-path
+  bootstrap:
+    initdb:
+      database: n8n
+      owner: n8n_user
+      secret:
+        name: n8n-db-secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-db-secret
+  namespace: data-state
+type: kubernetes.io/basic-auth
+stringData:
+  username: n8n_user
+  password: "ChangeThisSuperStrongPassword123!"

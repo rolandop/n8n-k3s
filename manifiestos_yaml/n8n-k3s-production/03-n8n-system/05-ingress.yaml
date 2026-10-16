@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: n8n-ingress
+  namespace: n8n-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - ecria.aseguradoradelsur.xyz
+    secretName: n8n-tls
+  rules:
+  - host: ecria.aseguradoradelsur.xyz
+    http:
+      paths:
+      # Todo el trafico webhook va al despliegue webhook
+      - path: /webhook
+        pathType: Prefix
+        backend:
+          service:
+            name: n8n-webhook
+            port:
+              number: 5678
+      # El resto del tráfico va al editor main
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: n8n-main
+            port:
+              number: 5678

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-cron
+  namespace: gateway-dmz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-cron
+  template:
+    metadata:
+      labels:
+        app: ms-cron
+    spec:
+      containers:
+      - name: cron
+        image: alpine:latest # REEMPLAZAR por la imagen real de ms-cron
+        command: ["sleep", "3600"]

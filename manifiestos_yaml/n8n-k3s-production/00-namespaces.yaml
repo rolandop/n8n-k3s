@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: data-state
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway-dmz
