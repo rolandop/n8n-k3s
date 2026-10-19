@@ -49,7 +49,7 @@ for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 | sudo tee "$f" > /dev/n
 sudo iptables -P FORWARD ACCEPT
 
 
-
+sudo dnf install -y kernel-modules-extra-$(uname -r) kernel-modules-extra
 
 
 # NOMBRAR AL NODO MASTER

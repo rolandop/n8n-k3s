@@ -1,4 +1,15 @@
-# Requiere CloudNativePG Operator instalado previamente
+# 1. Secreto con credenciales de acceso a la base de datos vectorial
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vector-db-secret
+  namespace: data-state
+type: kubernetes.io/basic-auth
+stringData:
+  username: vector_user
+  password: "ChangeThisVectorPassword123!"
+---
+# 2. Definición del Clúster PostgreSQL Vectorial con archivado continuo
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -7,7 +18,6 @@ metadata:
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4
-  # Actualización automática del nodo primario sin intervención humana
   primaryUpdateStrategy: unsupervised
   nodeMaintenanceWindow:
     inProgress: false
@@ -24,15 +34,39 @@ spec:
       owner: vector_user
       secret:
         name: vector-db-secret
+      # Habilitar pgvector automáticamente tras crear la DB
       postInitSQL:
         - "CREATE EXTENSION IF NOT EXISTS vector;"
+
+  # --- CONFIGURACIÓN DE RESPALDOS CONTINUOS Y WALs (PITR) ---
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: "s3://n8n-k3s-backups/vector-db/"
+      # Misma IP del servidor externo, subcarpeta separada:
+      endpointURL: "http://172.18.0.50:9000"
+      s3Credentials:
+        accessKeyId:
+          name: s3-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: s3-backup-creds
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+      data:
+        compression: gzip
+        jobs: 2
 ---
-apiVersion: v1
-kind: Secret
+# 3. Tarea programada para copia base completa diaria (02:30 AM)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
 metadata:
-  name: vector-db-secret
+  name: vector-db-daily-backup
   namespace: data-state
-type: kubernetes.io/basic-auth
-stringData:
-  username: vector_user
-  password: "ChangeThisVectorPassword123!"
+spec:
+  schedule: "0 30 2 * * *" # Expresión Cron: todos los días a las 02:30 UTC
+  backupOwnerReference: self
+  cluster:
+    name: vector-db

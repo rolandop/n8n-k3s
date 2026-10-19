@@ -1,4 +1,15 @@
-# Requiere CloudNativePG Operator instalado previamente
+# 1. Secreto con credenciales de acceso a la base de datos n8n
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-db-secret
+  namespace: data-state
+type: kubernetes.io/basic-auth
+stringData:
+  username: n8n_user
+  password: "ChangeThisSuperStrongPassword123!"
+---
+# 2. Definición del Clúster PostgreSQL con archivado continuo (Barman Cloud)
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -7,7 +18,6 @@ metadata:
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:16.4
-  # Actualización automática del nodo primario sin intervención humana
   primaryUpdateStrategy: unsupervised
   nodeMaintenanceWindow:
     inProgress: false
@@ -24,13 +34,36 @@ spec:
       owner: n8n_user
       secret:
         name: n8n-db-secret
+
+  # --- CONFIGURACIÓN DE RESPALDOS CONTINUOS Y WALs (PITR) ---
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: "s3://n8n-k3s-backups/n8n-db/"
+      # IP y puerto del servidor externo MinIO:
+      endpointURL: "http://172.18.0.50:9000"
+      s3Credentials:
+        accessKeyId:
+          name: s3-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: s3-backup-creds
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+      data:
+        compression: gzip
+        jobs: 2
 ---
-apiVersion: v1
-kind: Secret
+# 3. Tarea programada para copia base completa diaria (02:00 AM)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
 metadata:
-  name: n8n-db-secret
+  name: n8n-db-daily-backup
   namespace: data-state
-type: kubernetes.io/basic-auth
-stringData:
-  username: n8n_user
-  password: "ChangeThisSuperStrongPassword123!"
+spec:
+  schedule: "0 0 2 * * *" # Expresión Cron: todos los días a las 02:00 UTC
+  backupOwnerReference: self
+  cluster:
+    name: n8n-db
